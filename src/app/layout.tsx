@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { ThemeProvider } from "next-themes";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -14,9 +15,10 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: {
     template: "%s | cirkl",
-    default: "cirkl"
+    default: "cirkl",
   },
-  description: "Discover cirkl, a dynamic platform where creators and fans connect through engaging 'Circles.' Join or create a Circle to interact, collaborate, and share exclusive content. Whether you're a creator looking to build your community or a fan eager to join discussions and participate in polls, cirkl offers a unique space for meaningful interactions and creative engagement",
+  description:
+    "Discover cirkl, a dynamic platform where creators and fans connect through engaging 'Circles.' Join or create a Circle to interact, collaborate, and share exclusive content. Whether you're a creator looking to build your community or a fan eager to join discussions and participate in polls, cirkl offers a unique space for meaningful interactions and creative engagement",
 };
 
 export default function RootLayout({
@@ -27,7 +29,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
