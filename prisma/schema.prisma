@@ -27,9 +27,10 @@ model User {
 
   sessions  Session[]
   posts     Post[]
-  following Follow[]  @relation("Following")
-  followers Follow[]  @relation("Followers")
+  following Follow[]   @relation("Following")
+  followers Follow[]   @relation("Followers")
   likes     Like[]
+  bookmarks Bookmark[]
 
   createdAt DateTime @default(now())
 
@@ -47,12 +48,13 @@ model Session {
 }
 
 model Post {
-  id          String  @id @default(cuid())
+  id          String     @id @default(cuid())
   content     String
   userId      String
-  user        User    @relation(references: [id], fields: [userId], onDelete: Cascade)
+  user        User       @relation(references: [id], fields: [userId], onDelete: Cascade)
   attachments Media[]
   likes       Like[]
+  bookmarks   Bookmark[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -95,4 +97,17 @@ model Like {
 
   @@unique([userId, postId])
   @@map("like")
+}
+
+model Bookmark {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@map("bookmarks")
 }
