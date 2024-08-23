@@ -22,14 +22,30 @@ export async function submitComment({
 
   const { content: contentValidated } = createCommentSchema.parse({ content });
 
-  const newComment = await prisma.comment.create({
-    data: {
-      content: contentValidated,
-      postId: post.id,
-      userId: user.id,
-    },
-    include: getCommentDataInclude(user.id),
-  });
+  // if the second creation fails, the first will be rolled back and the comment won't be created
+  const [newComment] = await prisma.$transaction([
+    // create comment in db
+    prisma.comment.create({
+      data: {
+        content: contentValidated,
+        postId: post.id,
+        userId: user.id,
+      },
+      include: getCommentDataInclude(user.id),
+    }),
+    ...(post.userId !== user.id
+      ? [
+          prisma.notification.create({
+            data: {
+              issuerId: user.id,
+              recipientId: post.user.id,
+              postId: post.id,
+              type: "COMMENT",
+            },
+          }),
+        ]
+      : []),
+  ]);
 
   return newComment;
 }
@@ -47,6 +63,20 @@ export async function deleteComment(id: string) {
   if (!comment) throw new Error("Comment not found");
 
   if (comment.userId !== user.id) throw new Error("Unauthorized");
+
+  await prisma.$transaction([
+    prisma.comment.delete({
+      where: { id },
+      include: getCommentDataInclude(user.id),
+    }),
+    prisma.notification.deleteMany({
+      where: {
+        issuerId: user.id,
+        recipientId: comment.userId,
+        type: "LIKE",
+      },
+    }),
+  ]);
 
   const deletedComment = await prisma.comment.delete({
     where: { id },

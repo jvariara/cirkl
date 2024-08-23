@@ -61,20 +61,50 @@ export async function POST(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // create a new like in db
-    await prisma.like.upsert({
+    const post = await prisma.post.findUnique({
       where: {
-        userId_postId: {
+        id: postId,
+      },
+      select: {
+        userId: true,
+      },
+    });
+
+    if (!post) {
+      return Response.json({ error: "Post not found" }, { status: 404 });
+    }
+
+    // use transaction so we can make sure both succeed
+    // if the second creation fails, the first will be rolled back and the like won't be created
+    await prisma.$transaction([
+      // create a like in db
+      prisma.like.upsert({
+        where: {
+          userId_postId: {
+            userId: loggedInUser.id,
+            postId,
+          },
+        },
+        create: {
           userId: loggedInUser.id,
           postId,
         },
-      },
-      create: {
-        userId: loggedInUser.id,
-        postId,
-      },
-      update: {},
-    });
+        update: {},
+      }),
+      // create a notification in db if the post userId is not the loggedInUserId
+      ...(loggedInUser.id !== post.userId
+        ? [
+            prisma.notification.create({
+              data: {
+                issuerId: loggedInUser.id,
+                recipientId: post.userId,
+                postId,
+                type: "LIKE",
+              },
+            }),
+          ]
+        : []),
+    ]);
 
     return new Response();
   } catch (error) {
@@ -94,12 +124,38 @@ export async function DELETE(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await prisma.like.deleteMany({
+    const post = await prisma.post.findUnique({
       where: {
-        userId: loggedInUser.id,
-        postId,
+        id: postId,
+      },
+      select: {
+        userId: true,
       },
     });
+
+    if (!post) {
+      return Response.json({ error: "Post not found" }, { status: 404 });
+    }
+
+    await prisma.$transaction([
+      // delete like
+      prisma.like.deleteMany({
+        where: {
+          userId: loggedInUser.id,
+          postId,
+        },
+      }),
+      // delete notification
+      // if it does not exist, it will be ignored and won't throw an error
+      prisma.notification.deleteMany({
+        where: {
+          issuerId: loggedInUser.id,
+          recipientId: post.userId,
+          postId,
+          type: "LIKE",
+        },
+      }),
+    ]);
 
     return new Response();
   } catch (error) {
