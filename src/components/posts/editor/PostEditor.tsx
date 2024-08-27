@@ -2,19 +2,21 @@
 
 import { useSession } from "@/app/(main)/SessionProvider";
 import LoadingButton from "@/components/LoadingButton";
+import { MentionList } from "@/components/MentionList";
+import { Button } from "@/components/ui/button";
 import UserAvatar from "@/components/UserAvatar";
+import { cn } from "@/lib/utils";
+import Mention from "@tiptap/extension-mention";
 import Placeholder from "@tiptap/extension-placeholder";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { EditorContent, ReactRenderer, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { useDropzone } from "@uploadthing/react";
+import { ImageIcon, Loader2, X } from "lucide-react";
+import Image from "next/image";
+import { ClipboardEvent, useRef } from "react";
 import { useSubmitPostMutation } from "./mutations";
 import "./styles.css";
 import useMediaUpload, { Attachment } from "./useMediaUpload";
-import { ClipboardEvent, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { ImageIcon, Loader2, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import Image from "next/image";
-import { useDropzone } from "@uploadthing/react";
 
 const PostEditor = () => {
   const { user } = useSession();
@@ -44,6 +46,43 @@ const PostEditor = () => {
       }),
       Placeholder.configure({
         placeholder: "What's on your mind?",
+      }),
+      Mention.configure({
+        HTMLAttributes: {
+          class: "mention",
+        },
+        suggestion: {
+          char: "@",
+          render: () => {
+            let reactRenderer: ReactRenderer;
+
+            return {
+              onStart: (props) => {
+                reactRenderer = new ReactRenderer(MentionList, {
+                  props,
+                  editor: props.editor,
+                });
+              },
+
+              onUpdate(props) {
+                reactRenderer?.updateProps(props);
+              },
+
+              onKeyDown(props) {
+                if (props.event.key === "Escape") {
+                  reactRenderer?.destroy();
+                  return true;
+                }
+
+                return (reactRenderer?.ref as any)?.onKeyDown(props);
+              },
+
+              onExit() {
+                reactRenderer.destroy();
+              },
+            };
+          },
+        },
       }),
     ],
   });

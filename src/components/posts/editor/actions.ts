@@ -2,7 +2,7 @@
 
 import { validateRequest } from "@/auth";
 import prisma from "@/lib/db";
-import { getPostDataInclude } from "@/lib/types";
+import { getPostDataInclude, getUserDataSelect } from "@/lib/types";
 import { extractMentions } from "@/lib/utils";
 import { createPostSchema } from "@/lib/validation";
 
@@ -53,4 +53,33 @@ export async function submitPost(input: {
   );
 
   return newPost;
+}
+
+export async function getMentionUsers(query: string) {
+  const { user: loggedInUser } = await validateRequest();
+
+  if (!loggedInUser) throw Error("Unauthorized");
+
+  const users = prisma.user.findMany({
+    where: {
+      OR: [
+        {
+          displayName: {
+            contains: query,
+            mode: "insensitive",
+          },
+        },
+        {
+          username: {
+            contains: query,
+            mode: "insensitive",
+          },
+        },
+      ],
+    },
+    select: getUserDataSelect(loggedInUser.id),
+    take: 10,
+  });
+
+  return users;
 }
