@@ -4,7 +4,7 @@ import UserAvatar from "@/components/UserAvatar";
 import { NotificationData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { NotificationType } from "@prisma/client";
-import { Heart, MessageCircle, User2 } from "lucide-react";
+import { AtSign, Heart, MessageCircle, User2 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "../SessionProvider";
 
@@ -32,6 +32,11 @@ const Notification = ({ notification }: NotificationProps) => {
     LIKE: {
       message: `${notification.issuer.displayName} liked your post`,
       icon: <Heart className="size-7 text-red-500 fill-red-500" />,
+      href: `/posts/${notification.postId}`,
+    },
+    MENTION: {
+      message: `${notification.issuer.displayName} mentioned you in a post`,
+      icon: <AtSign className="size-7 text-primary" />,
       href: `/posts/${notification.postId}`,
     },
   };

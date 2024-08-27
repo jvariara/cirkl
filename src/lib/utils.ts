@@ -33,3 +33,15 @@ export function slugify(input: string): string {
     .replace(/ /g, "-")
     .replace(/[^a-z0-9_-]/g, "");
 }
+
+export function extractMentions(content: string): string[] {
+  const mentionRegex = /@([a-zA-Z0-9_]+)/g;
+  const mentions = new Set<string>();
+  let match: RegExpExecArray | null;
+
+  while ((match = mentionRegex.exec(content)) !== null) {
+    mentions.add(match[1]); // match[1] is the username
+  }
+
+  return Array.from(mentions);
+}

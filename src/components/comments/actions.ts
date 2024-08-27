@@ -7,6 +7,7 @@ import {
   getPostDataInclude,
   PostData,
 } from "@/lib/types";
+import { extractMentions } from "@/lib/utils";
 import { createCommentSchema } from "@/lib/validation";
 
 export async function submitComment({
@@ -21,6 +22,18 @@ export async function submitComment({
   if (!user) throw Error("Unauthorized");
 
   const { content: contentValidated } = createCommentSchema.parse({ content });
+
+  // Extract mentions from the content
+  const mentionedUsernames = extractMentions(content);
+
+  // Find users by usernames
+  const mentionedUsers = await prisma.user.findMany({
+    where: {
+      username: {
+        in: mentionedUsernames,
+      },
+    },
+  });
 
   // if the second creation fails, the first will be rolled back and the comment won't be created
   const [newComment] = await prisma.$transaction([
@@ -46,6 +59,20 @@ export async function submitComment({
         ]
       : []),
   ]);
+
+  // Create notifications for mentioned users
+  await Promise.all(
+    mentionedUsers.map((mentionedUser) =>
+      prisma.notification.create({
+        data: {
+          issuerId: user.id,
+          recipientId: mentionedUser.id,
+          postId: post.id,
+          type: "MENTION",
+        },
+      })
+    )
+  );
 
   return newComment;
 }

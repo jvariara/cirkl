@@ -3,6 +3,7 @@
 import { validateRequest } from "@/auth";
 import prisma from "@/lib/db";
 import { getPostDataInclude } from "@/lib/types";
+import { extractMentions } from "@/lib/utils";
 import { createPostSchema } from "@/lib/validation";
 
 export async function submitPost(input: {
@@ -15,6 +16,17 @@ export async function submitPost(input: {
 
   const { content, mediaIds } = createPostSchema.parse(input);
 
+  // extract mentions from the post
+  const mentionedUsernames = extractMentions(content);
+
+  const mentionedUsers = await prisma.user.findMany({
+    where: {
+      username: {
+        in: mentionedUsernames,
+      },
+    },
+  });
+
   const newPost = await prisma.post.create({
     data: {
       content,
@@ -25,6 +37,20 @@ export async function submitPost(input: {
     },
     include: getPostDataInclude(user.id),
   });
+
+  // Create notifications for mentioned users
+  await Promise.all(
+    mentionedUsers.map((mentionedUser) =>
+      prisma.notification.create({
+        data: {
+          issuerId: user.id,
+          recipientId: mentionedUser.id,
+          postId: newPost.id,
+          type: "MENTION",
+        },
+      })
+    )
+  );
 
   return newPost;
 }
